@@ -14,14 +14,20 @@ class CompressionApp:
         self.root.title("Sistema de Compresión de Datos")
         self.root.geometry("800x600")
         self.root.resizable(True, True)
-        self.text_compressor = TextCompressor()
-        self.image_compressor = ImageCompressor()
-        self.audio_compressor = AudioCompressor()
+        
+        self.main_output_dir = "comprimidos"
+        os.makedirs(self.main_output_dir, exist_ok=True)
+        
+        self.text_compressor = TextCompressor(os.path.join(self.main_output_dir, "texto"))
+        self.image_compressor = ImageCompressor(os.path.join(self.main_output_dir, "imagenes"))
+        self.audio_compressor = AudioCompressor(os.path.join(self.main_output_dir, "audio"))
+        
         self.setup_ui()
     
     def setup_ui(self):
         main_frame = ctk.CTkFrame(self.root, fg_color=("gray90", "gray13"))
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
         title_label = ctk.CTkLabel(
             main_frame,
             text="🔄 SISTEMA DE COMPRESIÓN DE DATOS",
@@ -29,6 +35,7 @@ class CompressionApp:
             text_color=("#2B5B84", "#4CC9F0")
         )
         title_label.pack(pady=(40, 20))
+        
         subtitle_label = ctk.CTkLabel(
             main_frame,
             text="Seleccione el tipo de archivo que desea comprimir",
@@ -36,8 +43,10 @@ class CompressionApp:
             text_color=("gray40", "gray60")
         )
         subtitle_label.pack(pady=(0, 40))
+        
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         buttons_frame.pack(pady=20, padx=100, fill="both", expand=True)
+        
         text_btn = ctk.CTkButton(
             buttons_frame,
             text="📝 Comprimir Texto\n(Algoritmo Huffman)",
@@ -50,6 +59,7 @@ class CompressionApp:
             hover_color=("#2B7BBD", "#144870")
         )
         text_btn.pack(pady=15, fill="x")
+        
         image_btn = ctk.CTkButton(
             buttons_frame,
             text="🖼️ Comprimir Imágenes\n(Algoritmo RLE)",
@@ -62,6 +72,7 @@ class CompressionApp:
             hover_color=("#267A49", "#164A2A")
         )
         image_btn.pack(pady=15, fill="x")
+        
         audio_btn = ctk.CTkButton(
             buttons_frame,
             text="🎵 Comprimir Audio\n(Codificación Diferencial + RLE)",
@@ -74,29 +85,49 @@ class CompressionApp:
             hover_color=("#7A3C10", "#4A2509")
         )
         audio_btn.pack(pady=15, fill="x")
-        self.stats_label = ctk.CTkLabel(
+        
+        open_folder_btn = ctk.CTkButton(
             main_frame,
-            text="Cargue un archivo para ver estadísticas de compresión",
-            font=ctk.CTkFont(size=12),
-            text_color=("gray50", "gray70")
+            text="📁 Abrir Carpeta de Comprimidos",
+            command=self.open_compressed_folder,
+            height=50,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#8B4513", "#5D2F0F"),
+            hover_color=("#7A3C10", "#4A2509")
         )
-        self.stats_label.pack(pady=(40, 10))
+        open_folder_btn.pack(pady=20)
     
     def open_text_compression(self):
-        TextCompressionWindow(self.root, self.text_compressor)
+        window = TextCompressionWindow(self.root, self.text_compressor)
+        window.window.transient(self.root)
+        window.window.grab_set()
     
     def open_image_compression(self):
-        ImageCompressionWindow(self.root, self.image_compressor)
+        window = ImageCompressionWindow(self.root, self.image_compressor)
+        window.window.transient(self.root)
+        window.window.grab_set()
     
     def open_audio_compression(self):
-        AudioCompressionWindow(self.root, self.audio_compressor)
+        window = AudioCompressionWindow(self.root, self.audio_compressor)
+        window.window.transient(self.root)
+        window.window.grab_set()
+    
+    def open_compressed_folder(self):
+        if os.path.exists(self.main_output_dir):
+            os.startfile(self.main_output_dir)
+        else:
+            messagebox.showinfo("Información", "La carpeta de comprimidos no existe todavía.")
 
 class CompressionWindow:
     def __init__(self, parent, compressor, title, icon):
         self.window = ctk.CTkToplevel(parent)
         self.window.title(title)
-        self.window.geometry("700x600")
+        self.window.geometry("700x650")
         self.window.resizable(True, True)
+        
+        self.window.transient(parent)
+        self.window.grab_set()
+        
         self.compressor = compressor
         self.file_path = None
         self.compressed_path = None
@@ -105,21 +136,26 @@ class CompressionWindow:
     def setup_ui(self, title, icon):
         main_frame = ctk.CTkFrame(self.window)
         main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
         header_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
         header_frame.pack(fill="x", pady=(0, 20))
+        
         title_label = ctk.CTkLabel(
             header_frame,
             text=f"{icon} {title}",
             font=ctk.CTkFont(size=20, weight="bold")
         )
         title_label.pack(pady=10)
+        
         file_frame = ctk.CTkFrame(main_frame)
         file_frame.pack(fill="x", pady=10, padx=10)
+        
         ctk.CTkLabel(
             file_frame,
             text="Selección de Archivo",
             font=ctk.CTkFont(weight="bold")
         ).pack(pady=10)
+        
         self.load_btn = ctk.CTkButton(
             file_frame,
             text="📂 Cargar Archivo",
@@ -129,6 +165,7 @@ class CompressionWindow:
             corner_radius=10
         )
         self.load_btn.pack(pady=10)
+        
         self.file_label = ctk.CTkLabel(
             file_frame,
             text="No se ha cargado ningún archivo",
@@ -136,13 +173,16 @@ class CompressionWindow:
             wraplength=500
         )
         self.file_label.pack(pady=5)
+        
         compress_frame = ctk.CTkFrame(main_frame)
         compress_frame.pack(fill="x", pady=10, padx=10)
+        
         ctk.CTkLabel(
             compress_frame,
             text="Compresión",
             font=ctk.CTkFont(weight="bold")
         ).pack(pady=10)
+        
         self.compress_btn = ctk.CTkButton(
             compress_frame,
             text="🗜️ Comprimir Archivo",
@@ -153,13 +193,16 @@ class CompressionWindow:
             state="disabled"
         )
         self.compress_btn.pack(pady=10)
+        
         stats_frame = ctk.CTkFrame(main_frame)
         stats_frame.pack(fill="x", pady=10, padx=10)
+        
         ctk.CTkLabel(
             stats_frame,
             text="Estadísticas",
             font=ctk.CTkFont(weight="bold")
         ).pack(pady=10)
+        
         self.size_label = ctk.CTkLabel(
             stats_frame,
             text="Esperando compresión...",
@@ -167,16 +210,20 @@ class CompressionWindow:
             font=ctk.CTkFont(size=12)
         )
         self.size_label.pack(pady=5)
+        
         self.progress_bar = ctk.CTkProgressBar(stats_frame, height=20, corner_radius=10)
         self.progress_bar.pack(fill="x", pady=10, padx=20)
         self.progress_bar.set(0)
+        
         decompress_frame = ctk.CTkFrame(main_frame)
         decompress_frame.pack(fill="x", pady=10, padx=10)
+        
         ctk.CTkLabel(
             decompress_frame,
             text="Descompresión",
             font=ctk.CTkFont(weight="bold")
         ).pack(pady=10)
+        
         self.decompress_btn = ctk.CTkButton(
             decompress_frame,
             text="📤 Descomprimir Archivo",
@@ -187,6 +234,18 @@ class CompressionWindow:
             state="disabled"
         )
         self.decompress_btn.pack(pady=10)
+        
+        open_folder_btn = ctk.CTkButton(
+            decompress_frame,
+            text="📁 Abrir Carpeta",
+            command=self.open_output_folder,
+            width=200,
+            height=35,
+            corner_radius=10,
+            fg_color=("#2E8B57", "#1F5E3B"),
+            hover_color=("#267A49", "#164A2A")
+        )
+        open_folder_btn.pack(pady=5)
     
     def load_file(self):
         pass
@@ -196,6 +255,13 @@ class CompressionWindow:
     
     def decompress_file(self):
         pass
+    
+    def open_output_folder(self):
+        output_dir = getattr(self.compressor, 'output_dir', 'comprimidos')
+        if os.path.exists(output_dir):
+            os.startfile(output_dir)
+        else:
+            messagebox.showinfo("Información", "La carpeta no existe todavía.")
     
     def get_file_size(self, file_path):
         try:

@@ -2,13 +2,14 @@ import os
 import pickle
 from PIL import Image
 import numpy as np
+from datetime import datetime
 
 class ImageCompressor:
-    def __init__(self):
-        pass
+    def __init__(self, output_dir):
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
     
     def rle_compress(self, data):
-        """Compresión Run-Length Encoding"""
         if len(data) == 0:
             return []
         
@@ -28,7 +29,6 @@ class ImageCompressor:
         return compressed
     
     def rle_decompress(self, compressed_data):
-        """Descompresión Run-Length Encoding"""
         decompressed = []
         for value, count in compressed_data:
             decompressed.extend([value] * count)
@@ -39,6 +39,7 @@ class ImageCompressor:
             img = Image.open(input_file)
         except Exception as e:
             raise Exception(f"No se pudo cargar la imagen: {str(e)}")
+        
         img_array = np.array(img)
         compressed_channels = []
         original_shape = img_array.shape
@@ -51,13 +52,17 @@ class ImageCompressor:
                 channel_data = img_array[:, :, channel].flatten().tolist()
                 compressed_data = self.rle_compress(channel_data)
                 compressed_channels.append(compressed_data)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.splitext(os.path.basename(input_file))[0]
+        output_file = os.path.join(self.output_dir, f"{filename}_compressed_{timestamp}.rle")
+        
         compressed_data = {
             'compressed_channels': compressed_channels,
             'original_shape': original_shape,
             'mode': img.mode
         }
         
-        output_file = os.path.splitext(input_file)[0] + '_compressed.rle'
         with open(output_file, 'wb') as file:
             pickle.dump(compressed_data, file)
         
@@ -70,10 +75,15 @@ class ImageCompressor:
         compressed_channels = compressed_data['compressed_channels']
         original_shape = compressed_data['original_shape']
         mode = compressed_data['mode']
+        
         decompressed_channels = []
         for compressed_channel in compressed_channels:
             decompressed_data = self.rle_decompress(compressed_channel)
             decompressed_channels.append(decompressed_data)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = os.path.splitext(os.path.basename(input_file))[0]
+        output_file = os.path.join(self.output_dir, f"{filename}_decompressed_{timestamp}.png")
         
         if len(original_shape) == 2:
             img_array = np.array(decompressed_channels[0]).reshape(original_shape)
@@ -88,8 +98,6 @@ class ImageCompressor:
             
             img_array = np.array(pixels).reshape(original_shape)
             img = Image.fromarray(img_array.astype('uint8'), mode)
-    
-        output_file = os.path.splitext(input_file)[0] + '_decompressed.png'
-        img.save(output_file)
         
+        img.save(output_file)
         return output_file
