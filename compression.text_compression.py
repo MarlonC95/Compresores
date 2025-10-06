@@ -18,14 +18,10 @@ class TextCompressor:
         pass
     
     def build_huffman_tree(self, text):
-        # Contar frecuencia de caracteres
         frequency = Counter(text)
         
-        # Crear heap de nodos
         heap = [HuffmanNode(char, freq) for char, freq in frequency.items()]
         heapq.heapify(heap)
-        
-        # Construir árbol de Huffman
         while len(heap) > 1:
             left = heapq.heappop(heap)
             right = heapq.heappop(heap)
@@ -62,10 +58,7 @@ class TextCompressor:
         return encoded_text, codes
     
     def decompress_text(self, encoded_text, codes):
-        # Invertir diccionario de códigos
         reverse_codes = {v: k for k, v in codes.items()}
-        
-        # Decodificar texto
         current_code = ""
         decoded_text = ""
         
@@ -78,21 +71,14 @@ class TextCompressor:
         return decoded_text
     
     def compress(self, input_file):
-        # Leer archivo de texto
         with open(input_file, 'r', encoding='utf-8') as file:
             text = file.read()
-        
-        # Comprimir texto
         encoded_text, codes = self.compress_text(text)
-        
-        # Preparar datos para guardar
         compressed_data = {
             'encoded_text': encoded_text,
             'codes': codes,
             'original_size': len(text)
         }
-        
-        # Guardar archivo comprimido
         output_file = os.path.splitext(input_file)[0] + '_compressed.bin'
         with open(output_file, 'wb') as file:
             pickle.dump(compressed_data, file)
@@ -100,16 +86,11 @@ class TextCompressor:
         return output_file
     
     def decompress(self, input_file):
-        # Leer archivo comprimido
         with open(input_file, 'rb') as file:
             compressed_data = pickle.load(file)
-        
-        # Descomprimir texto
         encoded_text = compressed_data['encoded_text']
         codes = compressed_data['codes']
         decoded_text = self.decompress_text(encoded_text, codes)
-        
-        # Guardar archivo descomprimido
         output_file = os.path.splitext(input_file)[0] + '_decompressed.txt'
         with open(output_file, 'w', encoding='utf-8') as file:
             file.write(decoded_text)
