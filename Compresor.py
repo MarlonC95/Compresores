@@ -405,18 +405,26 @@ class ImageCompressionWindow(CompressionWindow):
 class AudioCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
         super().__init__(parent, compressor, "Compresión de Audio", "🎵")
-        self.play_btn = ctk.CTkButton(
-            self.window.winfo_children()[0].winfo_children()[5],
-            text="▶️ Reproducir Audio",
-            command=self.play_audio,
-            width=200,
-            height=40,
-            corner_radius=10,
-            state="disabled",
-            fg_color=("#2E8B57", "#1F5E3B"),
-            hover_color=("#267A49", "#164A2A")
-        )
-        self.play_btn.pack(pady=5)
+        self.play_btn = None
+        self.create_play_button()
+    
+    def create_play_button(self):
+        main_frame = self.window.winfo_children()[0]
+        for widget in main_frame.winfo_children():
+            if isinstance(widget, ctk.CTkFrame) and "Descompresión" in str(widget.winfo_children()[0].cget("text")):
+                self.play_btn = ctk.CTkButton(
+                    widget,
+                    text="▶️ Reproducir Audio",
+                    command=self.play_audio,
+                    width=200,
+                    height=40,
+                    corner_radius=10,
+                    state="disabled",
+                    fg_color=("#2E8B57", "#1F5E3B"),
+                    hover_color=("#267A49", "#164A2A")
+                )
+                self.play_btn.pack(pady=5)
+                break
     
     def load_file(self):
         file_path = filedialog.askopenfilename(
@@ -455,7 +463,8 @@ class AudioCompressionWindow(CompressionWindow):
             )
             self.update_progress(1.0)
             self.decompress_btn.configure(state="normal")
-            self.play_btn.configure(state="normal")
+            if self.play_btn:
+                self.play_btn.configure(state="normal")
             messagebox.showinfo("Éxito", "✅ Audio comprimido correctamente")
         except Exception as e:
             self.update_progress(0)
@@ -483,11 +492,15 @@ class AudioCompressionWindow(CompressionWindow):
         if not self.compressed_path:
             return
         try:
-            decompressed_file = self.compressed_path.replace('_compressed.audiocomp', '_decompressed.wav')
-            if os.path.exists(decompressed_file):
-                self.compressor.play_audio(decompressed_file)
-            else:
-                messagebox.showwarning("Advertencia", "Primero debe descomprimir el archivo para reproducirlo")
+            base_name = self.compressed_path.replace('_compressed.audiocomp', '_decompressed')
+            
+            for ext in ['.wav', '.mp3']:
+                audio_file = base_name + ext
+                if os.path.exists(audio_file):
+                    self.compressor.play_audio(audio_file)
+                    return
+            
+            messagebox.showwarning("Advertencia", "Primero debe descomprimir el archivo para reproducirlo")
         except Exception as e:
             messagebox.showerror("Error", f"❌ Error al reproducir audio: {str(e)}")
 
