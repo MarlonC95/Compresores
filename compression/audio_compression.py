@@ -2,15 +2,17 @@ import os
 import pickle
 import numpy as np
 from scipy.io import wavfile
-import simpleaudio as sa
+import pygame
 from datetime import datetime
 from pydub import AudioSegment
 import tempfile
+import time
 
 class AudioCompressor:
     def __init__(self, output_dir="comprimidos/audio"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
+        pygame.mixer.init()
     
     def differential_encoding(self, data):
         encoded = [data[0]]
@@ -154,29 +156,12 @@ class AudioCompressor:
     
     def play_audio(self, audio_file):
         try:
-            file_ext = os.path.splitext(audio_file)[1].lower()
+            pygame.mixer.music.load(audio_file)
+            pygame.mixer.music.play()
             
-            if file_ext == '.wav':
-                wave_obj = sa.WaveObject.from_wave_file(audio_file)
-                play_obj = wave_obj.play()
-                play_obj.wait_done()
-                
-            elif file_ext == '.mp3':
-                temp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-                try:
-                    audio = AudioSegment.from_mp3(audio_file)
-                    audio.export(temp_wav.name, format='wav')
-                    
-                    wave_obj = sa.WaveObject.from_wave_file(temp_wav.name)
-                    play_obj = wave_obj.play()
-                    play_obj.wait_done()
-                    
-                finally:
-                    if os.path.exists(temp_wav.name):
-                        os.unlink(temp_wav.name)
-                        
-            else:
-                raise Exception("Formato de audio no soportado para reproducción")
+            # Esperar a que termine la reproducción
+            while pygame.mixer.music.get_busy():
+                time.sleep(0.1)
                 
         except Exception as e:
             raise Exception(f"Error al reproducir audio: {str(e)}")

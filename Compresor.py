@@ -283,23 +283,41 @@ class CompressionWindow:
 class TextCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
         super().__init__(parent, compressor, "Compresión de Texto", "📝")
+        self.is_compressed_file = False
     
     def load_file(self):
         file_path = filedialog.askopenfilename(
-            title="Seleccionar archivo de texto",
-            filetypes=[("Archivos de texto", "*.txt"), ("Todos los archivos", "*.*")]
+            title="Seleccionar archivo",
+            filetypes=[
+                ("Archivos de texto", "*.txt"), 
+                ("Archivos comprimidos", "*.bin"),
+                ("Todos los archivos", "*.*")
+            ]
         )
         if file_path:
             self.file_path = file_path
             file_size = self.get_file_size(file_path)
-            self.file_label.configure(
-                text=f"📄 Archivo: {os.path.basename(file_path)}\n"
-                     f"📦 Tamaño: {self.format_size(file_size)}"
-            )
-            self.compress_btn.configure(state="normal")
+            
+            # Verificar si es un archivo comprimido
+            self.is_compressed_file = file_path.endswith('.bin')
+            
+            if self.is_compressed_file:
+                self.file_label.configure(
+                    text=f"🗜️ Archivo comprimido: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="disabled")
+                self.decompress_btn.configure(state="normal")
+            else:
+                self.file_label.configure(
+                    text=f"📄 Archivo: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="normal")
+                self.decompress_btn.configure(state="disabled")
     
     def compress_file(self):
-        if not self.file_path:
+        if not self.file_path or self.is_compressed_file:
             return
         try:
             self.update_progress(0.3)
@@ -322,13 +340,22 @@ class TextCompressionWindow(CompressionWindow):
             messagebox.showerror("Error", f"❌ Error al comprimir: {str(e)}")
     
     def decompress_file(self):
-        if not self.compressed_path:
+        if not self.file_path:
             return
         try:
             self.update_progress(0.3)
-            decompressed_file = self.compressor.decompress(self.compressed_path)
+            if self.is_compressed_file:
+                # Descomprimir archivo cargado directamente
+                decompressed_file = self.compressor.decompress(self.file_path)
+            else:
+                # Descomprimir archivo comprimido en esta sesión
+                decompressed_file = self.compressor.decompress(self.compressed_path)
+            
             self.update_progress(0.8)
-            compressed_size = self.get_file_size(self.compressed_path)
+            if self.is_compressed_file:
+                compressed_size = self.get_file_size(self.file_path)
+            else:
+                compressed_size = self.get_file_size(self.compressed_path)
             decompressed_size = self.get_file_size(decompressed_file)
             self.update_progress(1.0)
             messagebox.showinfo("Éxito", 
@@ -342,26 +369,41 @@ class TextCompressionWindow(CompressionWindow):
 class ImageCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
         super().__init__(parent, compressor, "Compresión de Imágenes", "🖼️")
+        self.is_compressed_file = False
     
     def load_file(self):
         file_path = filedialog.askopenfilename(
-            title="Seleccionar imagen",
+            title="Seleccionar archivo",
             filetypes=[
                 ("Imágenes", "*.png *.bmp *.jpg *.jpeg"),
+                ("Archivos comprimidos", "*.rle"),
                 ("Todos los archivos", "*.*")
             ]
         )
         if file_path:
             self.file_path = file_path
             file_size = self.get_file_size(file_path)
-            self.file_label.configure(
-                text=f"🖼️ Archivo: {os.path.basename(file_path)}\n"
-                     f"📦 Tamaño: {self.format_size(file_size)}"
-            )
-            self.compress_btn.configure(state="normal")
+            
+            # Verificar si es un archivo comprimido
+            self.is_compressed_file = file_path.endswith('.rle')
+            
+            if self.is_compressed_file:
+                self.file_label.configure(
+                    text=f"🗜️ Archivo comprimido: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="disabled")
+                self.decompress_btn.configure(state="normal")
+            else:
+                self.file_label.configure(
+                    text=f"🖼️ Archivo: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="normal")
+                self.decompress_btn.configure(state="disabled")
     
     def compress_file(self):
-        if not self.file_path:
+        if not self.file_path or self.is_compressed_file:
             return
         try:
             self.update_progress(0.2)
@@ -385,13 +427,22 @@ class ImageCompressionWindow(CompressionWindow):
             messagebox.showerror("Error", f"❌ Error al comprimir: {str(e)}")
     
     def decompress_file(self):
-        if not self.compressed_path:
+        if not self.file_path:
             return
         try:
             self.update_progress(0.2)
-            decompressed_file = self.compressor.decompress(self.compressed_path)
+            if self.is_compressed_file:
+                # Descomprimir archivo cargado directamente
+                decompressed_file = self.compressor.decompress(self.file_path)
+            else:
+                # Descomprimir archivo comprimido en esta sesión
+                decompressed_file = self.compressor.decompress(self.compressed_path)
+            
             self.update_progress(0.7)
-            compressed_size = self.get_file_size(self.compressed_path)
+            if self.is_compressed_file:
+                compressed_size = self.get_file_size(self.file_path)
+            else:
+                compressed_size = self.get_file_size(self.compressed_path)
             decompressed_size = self.get_file_size(decompressed_file)
             self.update_progress(1.0)
             messagebox.showinfo("Éxito", 
@@ -405,6 +456,7 @@ class ImageCompressionWindow(CompressionWindow):
 class AudioCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
         super().__init__(parent, compressor, "Compresión de Audio", "🎵")
+        self.is_compressed_file = False
         self.play_btn = None
         self.create_play_button()
     
@@ -428,24 +480,42 @@ class AudioCompressionWindow(CompressionWindow):
     
     def load_file(self):
         file_path = filedialog.askopenfilename(
-            title="Seleccionar archivo de audio",
+            title="Seleccionar archivo",
             filetypes=[
                 ("Archivos WAV", "*.wav"),
                 ("Archivos MP3", "*.mp3"),
+                ("Archivos comprimidos", "*.audiocomp"),
                 ("Todos los archivos", "*.*")
             ]
         )
         if file_path:
             self.file_path = file_path
             file_size = self.get_file_size(file_path)
-            self.file_label.configure(
-                text=f"🎵 Archivo: {os.path.basename(file_path)}\n"
-                     f"📦 Tamaño: {self.format_size(file_size)}"
-            )
-            self.compress_btn.configure(state="normal")
+            
+            # Verificar si es un archivo comprimido
+            self.is_compressed_file = file_path.endswith('.audiocomp')
+            
+            if self.is_compressed_file:
+                self.file_label.configure(
+                    text=f"🗜️ Archivo comprimido: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="disabled")
+                self.decompress_btn.configure(state="normal")
+                if self.play_btn:
+                    self.play_btn.configure(state="normal")
+            else:
+                self.file_label.configure(
+                    text=f"🎵 Archivo: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="normal")
+                self.decompress_btn.configure(state="disabled")
+                if self.play_btn:
+                    self.play_btn.configure(state="disabled")
     
     def compress_file(self):
-        if not self.file_path:
+        if not self.file_path or self.is_compressed_file:
             return
         try:
             self.update_progress(0.2)
@@ -471,13 +541,22 @@ class AudioCompressionWindow(CompressionWindow):
             messagebox.showerror("Error", f"❌ Error al comprimir: {str(e)}")
     
     def decompress_file(self):
-        if not self.compressed_path:
+        if not self.file_path:
             return
         try:
             self.update_progress(0.2)
-            decompressed_file = self.compressor.decompress(self.compressed_path)
+            if self.is_compressed_file:
+                # Descomprimir archivo cargado directamente
+                decompressed_file = self.compressor.decompress(self.file_path)
+            else:
+                # Descomprimir archivo comprimido en esta sesión
+                decompressed_file = self.compressor.decompress(self.compressed_path)
+            
             self.update_progress(0.7)
-            compressed_size = self.get_file_size(self.compressed_path)
+            if self.is_compressed_file:
+                compressed_size = self.get_file_size(self.file_path)
+            else:
+                compressed_size = self.get_file_size(self.compressed_path)
             decompressed_size = self.get_file_size(decompressed_file)
             self.update_progress(1.0)
             messagebox.showinfo("Éxito", 
@@ -489,18 +568,21 @@ class AudioCompressionWindow(CompressionWindow):
             messagebox.showerror("Error", f"❌ Error al descomprimir: {str(e)}")
     
     def play_audio(self):
-        if not self.compressed_path:
+        if not self.file_path:
             return
         try:
-            base_name = self.compressed_path.replace('_compressed.audiocomp', '_decompressed')
-            
-            for ext in ['.wav', '.mp3']:
-                audio_file = base_name + ext
-                if os.path.exists(audio_file):
-                    self.compressor.play_audio(audio_file)
-                    return
-            
-            messagebox.showwarning("Advertencia", "Primero debe descomprimir el archivo para reproducirlo")
+            if self.is_compressed_file:
+                # Para archivos comprimidos, necesitamos descomprimirlo primero
+                base_name = self.file_path.replace('_compressed.audiocomp', '_decompressed')
+                for ext in ['.wav', '.mp3']:
+                    audio_file = base_name + ext
+                    if os.path.exists(audio_file):
+                        self.compressor.play_audio(audio_file)
+                        return
+                messagebox.showwarning("Advertencia", "Primero debe descomprimir el archivo para reproducirlo")
+            else:
+                # Para archivos originales, reproducir directamente
+                self.compressor.play_audio(self.file_path)
         except Exception as e:
             messagebox.showerror("Error", f"❌ Error al reproducir audio: {str(e)}")
 
