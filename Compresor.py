@@ -582,6 +582,7 @@ class AudioCompressionWindow(CompressionWindow):
         try:
             self.update_progress(0.2)
             if self.is_compressed_file:
+                # Descomprimir archivo cargado directamente
                 decompressed_file = self.compressor.decompress(self.file_path)
             else:
                 # Descomprimir archivo comprimido en esta sesión
