@@ -124,6 +124,7 @@ class CompressionWindow:
         self.window.title(title)
         self.window.geometry("700x650")
         self.window.resizable(True, True)
+        self.is_maximized = False  # Estado de la ventana
         
         self.window.transient(parent)
         self.window.grab_set()
@@ -145,7 +146,20 @@ class CompressionWindow:
             text=f"{icon} {title}",
             font=ctk.CTkFont(size=20, weight="bold")
         )
-        title_label.pack(pady=10)
+        title_label.pack(side="left", pady=10, padx=10)
+        
+        # Botón para maximizar/restaurar ventana
+        maximize_btn = ctk.CTkButton(
+            header_frame,
+            text="⛶",
+            command=self.toggle_window_size,
+            width=40,
+            height=40,
+            corner_radius=10,
+            fg_color=("#3B8ED0", "#1F6AA5"),
+            hover_color=("#2B7BBD", "#144870")
+        )
+        maximize_btn.pack(side="right", padx=10)
         
         file_frame = ctk.CTkFrame(main_frame)
         file_frame.pack(fill="x", pady=10, padx=10)
@@ -247,6 +261,15 @@ class CompressionWindow:
         )
         open_folder_btn.pack(pady=5)
     
+    def toggle_window_size(self):
+        if not self.is_maximized:
+            self.window.state('zoomed')  # Maximizar ventana
+            self.is_maximized = True
+        else:
+            self.window.state('normal')  # Restaurar tamaño normal
+            self.window.geometry("700x650")  # Volver al tamaño original
+            self.is_maximized = False
+    
     def load_file(self):
         pass
     
@@ -289,7 +312,7 @@ class TextCompressionWindow(CompressionWindow):
         file_path = filedialog.askopenfilename(
             title="Seleccionar archivo",
             filetypes=[
-                ("Archivos de texto", "*.txt"), 
+                ("Archivos de texto", "*.txt"),
                 ("Archivos comprimidos", "*.bin"),
                 ("Todos los archivos", "*.*")
             ]
@@ -458,15 +481,16 @@ class AudioCompressionWindow(CompressionWindow):
         super().__init__(parent, compressor, "Compresión de Audio", "🎵")
         self.is_compressed_file = False
         self.play_btn = None
-        self.create_play_button()
+        self.play_compressed_btn = None
+        self.create_play_buttons()
     
-    def create_play_button(self):
+    def create_play_buttons(self):
         main_frame = self.window.winfo_children()[0]
         for widget in main_frame.winfo_children():
             if isinstance(widget, ctk.CTkFrame) and "Descompresión" in str(widget.winfo_children()[0].cget("text")):
                 self.play_btn = ctk.CTkButton(
                     widget,
-                    text="▶️ Reproducir Audio",
+                    text="▶️ Reproducir Audio Original",
                     command=self.play_audio,
                     width=200,
                     height=40,
@@ -476,6 +500,19 @@ class AudioCompressionWindow(CompressionWindow):
                     hover_color=("#267A49", "#164A2A")
                 )
                 self.play_btn.pack(pady=5)
+                
+                self.play_compressed_btn = ctk.CTkButton(
+                    widget,
+                    text="🎵 Reproducir Audio Comprimido",
+                    command=self.play_compressed_audio,
+                    width=200,
+                    height=40,
+                    corner_radius=10,
+                    fg_color=("#8B4513", "#5D2F0F"),
+                    hover_color=("#7A3C10", "#4A2509"),
+                    state="disabled"
+                )
+                self.play_compressed_btn.pack(pady=5)
                 break
     
     def load_file(self):
@@ -502,8 +539,8 @@ class AudioCompressionWindow(CompressionWindow):
                 )
                 self.compress_btn.configure(state="disabled")
                 self.decompress_btn.configure(state="normal")
-                if self.play_btn:
-                    self.play_btn.configure(state="normal")
+                self.play_btn.configure(state="disabled")
+                self.play_compressed_btn.configure(state="normal")
             else:
                 self.file_label.configure(
                     text=f"🎵 Archivo: {os.path.basename(file_path)}\n"
@@ -511,8 +548,8 @@ class AudioCompressionWindow(CompressionWindow):
                 )
                 self.compress_btn.configure(state="normal")
                 self.decompress_btn.configure(state="disabled")
-                if self.play_btn:
-                    self.play_btn.configure(state="disabled")
+                self.play_btn.configure(state="normal")
+                self.play_compressed_btn.configure(state="disabled")
     
     def compress_file(self):
         if not self.file_path or self.is_compressed_file:
@@ -533,8 +570,7 @@ class AudioCompressionWindow(CompressionWindow):
             )
             self.update_progress(1.0)
             self.decompress_btn.configure(state="normal")
-            if self.play_btn:
-                self.play_btn.configure(state="normal")
+            self.play_compressed_btn.configure(state="normal")
             messagebox.showinfo("Éxito", "✅ Audio comprimido correctamente")
         except Exception as e:
             self.update_progress(0)
@@ -546,7 +582,6 @@ class AudioCompressionWindow(CompressionWindow):
         try:
             self.update_progress(0.2)
             if self.is_compressed_file:
-                # Descomprimir archivo cargado directamente
                 decompressed_file = self.compressor.decompress(self.file_path)
             else:
                 # Descomprimir archivo comprimido en esta sesión
@@ -585,6 +620,48 @@ class AudioCompressionWindow(CompressionWindow):
                 self.compressor.play_audio(self.file_path)
         except Exception as e:
             messagebox.showerror("Error", f"❌ Error al reproducir audio: {str(e)}")
+    
+    def play_compressed_audio(self):
+        if not self.file_path and not self.compressed_path:
+            return
+        try:
+            audio_file = self.compressed_path if not self.is_compressed_file else self.file_path
+            if not audio_file.endswith('.audiocomp'):
+                messagebox.showwarning("Advertencia", "El archivo no está en formato comprimido válido")
+                return
+            
+            # Crear ventana para reproducir audio comprimido
+            player_window = ctk.CTkToplevel(self.window)
+            player_window.title("Reproducir Audio Comprimido")
+            player_window.geometry("300x150")
+            player_window.resizable(False, False)
+            player_window.transient(self.window)
+            player_window.grab_set()
+            
+            main_frame = ctk.CTkFrame(player_window)
+            main_frame.pack(fill="both", expand=True, padx=20, pady=20)
+            
+            title_label = ctk.CTkLabel(
+                main_frame,
+                text="🎵 Reproductor de Audio Comprimido",
+                font=ctk.CTkFont(size=16, weight="bold")
+            )
+            title_label.pack(pady=10)
+            
+            play_btn = ctk.CTkButton(
+                main_frame,
+                text="▶️ Reproducir",
+                command=lambda: self.compressor.play_audio(audio_file),
+                width=150,
+                height=40,
+                corner_radius=10,
+                fg_color=("#2E8B57", "#1F5E3B"),
+                hover_color=("#267A49", "#164A2A")
+            )
+            play_btn.pack(pady=10)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"❌ Error al reproducir audio comprimido: {str(e)}")
 
 if __name__ == "__main__":
     root = ctk.CTk()
