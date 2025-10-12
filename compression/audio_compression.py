@@ -7,12 +7,24 @@ from datetime import datetime
 from pydub import AudioSegment
 import tempfile
 import time
+import threading
 
 class AudioCompressor:
     def __init__(self, output_dir="comprimidos/audio"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
         pygame.mixer.init()
+        self.temp_files = []  # Lista para rastrear archivos temporales
+    
+    def cleanup_temp_files(self):
+        """Limpiar archivos temporales"""
+        for temp_file in self.temp_files:
+            try:
+                if os.path.exists(temp_file):
+                    os.unlink(temp_file)
+            except:
+                pass
+        self.temp_files = []
     
     def differential_encoding(self, data):
         encoded = [data[0]]
@@ -56,14 +68,17 @@ class AudioCompressor:
         file_ext = os.path.splitext(input_file)[1].lower()
         
         if file_ext == '.wav':
-            return input_file
+            return input_file, False  # No es temporal
         
         elif file_ext == '.mp3':
             try:
+                # Esperar un momento para asegurar que el archivo esté disponible
+                time.sleep(0.1)
                 audio = AudioSegment.from_mp3(input_file)
                 temp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
                 audio.export(temp_wav.name, format='wav')
-                return temp_wav.name
+                self.temp_files.append(temp_wav.name)
+                return temp_wav.name, True  # Es temporal
             except Exception as e:
                 raise Exception(f"Error al convertir MP3 a WAV: {str(e)}")
         
@@ -79,13 +94,16 @@ class AudioCompressor:
             raise Exception("Formato de audio no soportado. Use archivos WAV o MP3.")
     
     def compress_audio(self, input_file):
-        temp_wav_file = None
+        wav_file_path = None
+        is_temp = False
         try:
-            if input_file.lower().endswith('.mp3'):
-                temp_wav_file = self.convert_to_wav(input_file)
-                wav_file_path = temp_wav_file
-            else:
-                wav_file_path = input_file
+            # Limpiar archivos temporales previos
+            self.cleanup_temp_files()
+            
+            wav_file_path, is_temp = self.convert_to_wav(input_file)
+            
+            # Esperar para asegurar acceso al archivo
+            time.sleep(0.2)
             
             sample_rate, audio_data = wavfile.read(wav_file_path)
             
@@ -117,45 +135,77 @@ class AudioCompressor:
             raise Exception(f"Error al comprimir audio: {str(e)}")
         
         finally:
-            if temp_wav_file and os.path.exists(temp_wav_file):
-                os.unlink(temp_wav_file)
+            # Limpiar archivos temporales después de un tiempo
+            if is_temp:
+                def delayed_cleanup():
+                    time.sleep(2)  # Esperar 2 segundos antes de limpiar
+                    try:
+                        if os.path.exists(wav_file_path):
+                            os.unlink(wav_file_path)
+                    except:
+                        pass
+                
+                cleanup_thread = threading.Thread(target=delayed_cleanup, daemon=True)
+                cleanup_thread.start()
     
     def decompress(self, input_file):
-        with open(input_file, 'rb') as file:
-            compressed_info = pickle.load(file)
-        
-        compressed_data = compressed_info['compressed_data']
-        sample_rate = compressed_info['sample_rate']
-        original_format = compressed_info.get('original_format', '.wav')
-        
-        diff_decoded = self.rle_decompress_audio(compressed_data)
-        audio_data = self.differential_decoding(diff_decoded)
-        audio_array = np.array(audio_data, dtype=np.int16)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.splitext(os.path.basename(input_file))[0]
-        
-        if original_format == '.mp3':
-            output_file = os.path.join(self.output_dir, f"{filename}_decompressed_{timestamp}.mp3")
+        try:
+            with open(input_file, 'rb') as file:
+                compressed_info = pickle.load(file)
             
-            temp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
-            wavfile.write(temp_wav.name, sample_rate, audio_array)
+            compressed_data = compressed_info['compressed_data']
+            sample_rate = compressed_info['sample_rate']
+            original_format = compressed_info.get('original_format', '.wav')
             
-            try:
-                audio = AudioSegment.from_wav(temp_wav.name)
-                audio.export(output_file, format='mp3')
-            finally:
-                if os.path.exists(temp_wav.name):
-                    os.unlink(temp_wav.name)
+            diff_decoded = self.rle_decompress_audio(compressed_data)
+            audio_data = self.differential_decoding(diff_decoded)
+            audio_array = np.array(audio_data, dtype=np.int16)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = os.path.splitext(os.path.basename(input_file))[0]
+            
+            if original_format == '.mp3':
+                output_file = os.path.join(self.output_dir, f"{filename}_decompressed_{timestamp}.mp3")
+                
+                temp_wav = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+                wavfile.write(temp_wav.name, sample_rate, audio_array)
+                self.temp_files.append(temp_wav.name)
+                
+                try:
+                    # Esperar para asegurar acceso al archivo
+                    time.sleep(0.2)
+                    audio = AudioSegment.from_wav(temp_wav.name)
+                    audio.export(output_file, format='mp3')
+                finally:
+                    # Limpiar archivo temporal después de un tiempo
+                    def delayed_cleanup():
+                        time.sleep(2)
+                        try:
+                            if os.path.exists(temp_wav.name):
+                                os.unlink(temp_wav.name)
+                        except:
+                            pass
                     
-        else:
-            output_file = os.path.join(self.output_dir, f"{filename}_decompressed_{timestamp}.wav")
-            wavfile.write(output_file, sample_rate, audio_array)
-        
-        return output_file
+                    cleanup_thread = threading.Thread(target=delayed_cleanup, daemon=True)
+                    cleanup_thread.start()
+                    
+            else:
+                output_file = os.path.join(self.output_dir, f"{filename}_decompressed_{timestamp}.wav")
+                wavfile.write(output_file, sample_rate, audio_array)
+            
+            return output_file
+            
+        except Exception as e:
+            raise Exception(f"Error al descomprimir: {str(e)}")
     
     def play_audio(self, audio_file):
         try:
+            # Detener cualquier reproducción anterior
+            pygame.mixer.music.stop()
+            
+            # Esperar un momento
+            time.sleep(0.1)
+            
             pygame.mixer.music.load(audio_file)
             pygame.mixer.music.play()
             
@@ -165,3 +215,7 @@ class AudioCompressor:
                 
         except Exception as e:
             raise Exception(f"Error al reproducir audio: {str(e)}")
+    
+    def __del__(self):
+        """Destructor para limpiar archivos temporales"""
+        self.cleanup_temp_files()
