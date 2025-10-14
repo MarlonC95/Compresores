@@ -549,6 +549,79 @@ class TextCompressionWindow(CompressionWindow):
                         self.original_textbox.configure(state="disabled")
                 except Exception as e:
                     messagebox.showerror("Error", f"❌ Error al leer el archivo: {str(e)}")
+    
+    def compress_file(self):
+        if not self.file_path or self.is_compressed_file:
+            return
+        try:
+            self.update_progress(0.2)
+            compressed_file = self.compressor.compress(self.file_path)
+            self.compressed_path = compressed_file
+            self.update_progress(0.7)
+            original_size = self.get_file_size(self.file_path)
+            compressed_size = self.get_file_size(compressed_file)
+            self.update_progress(0.9)
+            compression_ratio = max(0, (1 - compressed_size / original_size) * 100) if original_size > 0 else 0
+            self.size_label.configure(
+                text=f"📊 Original: {self.format_size(original_size)}\n"
+                     f"🗜️ Comprimido: {self.format_size(compressed_size)}\n"
+                     f"📈 Ratio de compresión: {compression_ratio:.1f}%"
+            )
+            # Mostrar contenido comprimido en el textbox (representación legible)
+            try:
+                with open(compressed_file, 'rb') as file:
+                    self.compressed_content = str(file.read())  # Convertir a string para mostrar
+                    self.compressed_textbox.configure(state="normal")
+                    self.compressed_textbox.delete("1.0", "end")
+                    self.compressed_textbox.insert("1.0", self.compressed_content)
+                    self.compressed_textbox.configure(state="disabled")
+            except Exception as e:
+                print(f"Error al mostrar contenido comprimido: {str(e)}")
+            self.update_progress(1.0)
+            self.decompress_btn.configure(state="normal")
+            messagebox.showinfo("Éxito", "✅ Texto comprimido correctamente")
+        except Exception as e:
+            self.update_progress(0)
+            messagebox.showerror("Error", f"❌ Error al comprimir: {str(e)}")
+    
+    def decompress_file(self):
+        if not self.file_path:
+            return
+        try:
+            self.update_progress(0.2)
+            import time
+            time.sleep(0.5)
+            if self.is_compressed_file:
+                decompressed_file = self.compressor.decompress(self.file_path)
+            else:
+                decompressed_file = self.compressor.decompress(self.compressed_path)
+            self.update_progress(0.7)
+            time.sleep(0.3)
+            if self.is_compressed_file:
+                compressed_size = self.get_file_size(self.file_path)
+            else:
+                compressed_size = self.get_file_size(self.compressed_path)
+            decompressed_size = self.get_file_size(decompressed_file)
+            self.update_progress(1.0)
+            decompressed_filename = os.path.basename(decompressed_file)
+            messagebox.showinfo("Éxito",
+                               f"✅ Texto descomprimido correctamente\n\n"
+                               f"🗜️ Tamaño comprimido: {self.format_size(compressed_size)}\n"
+                               f"📝 Tamaño descomprimido: {self.format_size(decompressed_size)}\n"
+                               f"📁 Archivo: {decompressed_filename}")
+            # Mostrar contenido descomprimido
+            try:
+                with open(decompressed_file, 'r', encoding='utf-8') as file:
+                    self.original_content = file.read()
+                    self.original_textbox.configure(state="normal")
+                    self.original_textbox.delete("1.0", "end")
+                    self.original_textbox.insert("1.0", self.original_content)
+                    self.original_textbox.configure(state="disabled")
+            except Exception as e:
+                print(f"Error al mostrar contenido descomprimido: {str(e)}")
+        except Exception as e:
+            self.update_progress(0)
+            messagebox.showerror("Error", f"❌ Error al descomprimir: {str(e)}")
 
 class ImageCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
@@ -670,6 +743,77 @@ class ImageCompressionWindow(CompressionWindow):
                 except Exception as e:
                     messagebox.showerror("Error", f"❌ Error al cargar la imagen: {str(e)}")
                     self.original_image_label.configure(text="No hay imagen cargada", image=None)
+    
+    def compress_file(self):
+        if not self.file_path or self.is_compressed_file:
+            return
+        try:
+            self.update_progress(0.2)
+            compressed_file = self.compressor.compress(self.file_path)
+            self.compressed_path = compressed_file
+            self.update_progress(0.7)
+            original_size = self.get_file_size(self.file_path)
+            compressed_size = self.get_file_size(compressed_file)
+            self.update_progress(0.9)
+            compression_ratio = max(0, (1 - compressed_size / original_size) * 100) if original_size > 0 else 0
+            self.size_label.configure(
+                text=f"📊 Original: {self.format_size(original_size)}\n"
+                     f"🗜️ Comprimido: {self.format_size(compressed_size)}\n"
+                     f"📈 Ratio de compresión: {compression_ratio:.1f}%"
+            )
+            # Mostrar imagen comprimida
+            try:
+                self.compressed_image = Image.open(compressed_file)
+                self.compressed_image.thumbnail((250, 180))
+                self.compressed_photo = ImageTk.PhotoImage(self.compressed_image)
+                self.compressed_image_label.configure(image=self.compressed_photo, text="")
+            except Exception as e:
+                print(f"Error al mostrar imagen comprimida: {str(e)}")
+                self.compressed_image_label.configure(text="No hay imagen comprimida", image=None)
+            self.update_progress(1.0)
+            self.decompress_btn.configure(state="normal")
+            messagebox.showinfo("Éxito", "✅ Imagen comprimida correctamente")
+        except Exception as e:
+            self.update_progress(0)
+            messagebox.showerror("Error", f"❌ Error al comprimir: {str(e)}")
+    
+    def decompress_file(self):
+        if not self.file_path:
+            return
+        try:
+            self.update_progress(0.2)
+            import time
+            time.sleep(0.5)
+            if self.is_compressed_file:
+                decompressed_file = self.compressor.decompress(self.file_path)
+            else:
+                decompressed_file = self.compressor.decompress(self.compressed_path)
+            self.update_progress(0.7)
+            time.sleep(0.3)
+            if self.is_compressed_file:
+                compressed_size = self.get_file_size(self.file_path)
+            else:
+                compressed_size = self.get_file_size(self.compressed_path)
+            decompressed_size = self.get_file_size(decompressed_file)
+            self.update_progress(1.0)
+            decompressed_filename = os.path.basename(decompressed_file)
+            messagebox.showinfo("Éxito",
+                               f"✅ Imagen descomprimida correctamente\n\n"
+                               f"🗜️ Tamaño comprimido: {self.format_size(compressed_size)}\n"
+                               f"🖼️ Tamaño descomprimido: {self.format_size(decompressed_size)}\n"
+                               f"📁 Archivo: {decompressed_filename}")
+            # Mostrar imagen descomprimida
+            try:
+                self.original_image = Image.open(decompressed_file)
+                self.original_image.thumbnail((250, 180))
+                self.original_photo = ImageTk.PhotoImage(self.original_image)
+                self.original_image_label.configure(image=self.original_photo, text="")
+            except Exception as e:
+                print(f"Error al mostrar imagen descomprimida: {str(e)}")
+                self.original_image_label.configure(text="No hay imagen cargada", image=None)
+        except Exception as e:
+            self.update_progress(0)
+            messagebox.showerror("Error", f"❌ Error al descomprimir: {str(e)}")
 
 class AudioCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
@@ -775,7 +919,7 @@ class AudioCompressionWindow(CompressionWindow):
             original_size = self.get_file_size(self.file_path)
             compressed_size = self.get_file_size(compressed_file)
             self.update_progress(0.9)
-            compression_ratio = (1 - compressed_size / original_size) * 100
+            compression_ratio = max(0, (1 - compressed_size / original_size) * 100) if original_size > 0 else 0
             self.size_label.configure(
                 text=f"📊 Original: {self.format_size(original_size)}\n"
                      f"🗜️ Comprimido: {self.format_size(compressed_size)}\n"
