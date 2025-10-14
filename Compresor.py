@@ -382,7 +382,21 @@ class CompressionWindow:
             self.is_maximized = False
     
     def load_file(self):
-        pass
+        """Método base para cargar archivos, será sobrescrito por las subclases"""
+        file_types = [("Todos los archivos", "*.*")]
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar archivo",
+            filetypes=file_types
+        )
+        if file_path:
+            self.file_path = file_path
+            file_size = self.get_file_size(file_path)
+            self.file_label.configure(
+                text=f"📄 Archivo: {os.path.basename(file_path)}\n"
+                     f"📦 Tamaño: {self.format_size(file_size)}"
+            )
+            self.compress_btn.configure(state="normal")
+            self.decompress_btn.configure(state="disabled")
     
     def compress_file(self):
         pass
@@ -490,6 +504,51 @@ class TextCompressionWindow(CompressionWindow):
         textboxes_frame.grid_columnconfigure(0, weight=1)
         textboxes_frame.grid_columnconfigure(1, weight=1)
         textboxes_frame.grid_rowconfigure(0, weight=1)
+    
+    def load_file(self):
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar archivo de texto",
+            filetypes=[
+                ("Archivos de texto", "*.txt"),
+                ("Archivos comprimidos", "*.textcomp"),
+                ("Todos los archivos", "*.*")
+            ]
+        )
+        if file_path:
+            self.file_path = file_path
+            file_size = self.get_file_size(file_path)
+            
+            # Verificar si es un archivo comprimido
+            self.is_compressed_file = file_path.endswith('.textcomp')
+            
+            if self.is_compressed_file:
+                self.file_label.configure(
+                    text=f"🗜️ Archivo comprimido: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="disabled")
+                self.decompress_btn.configure(state="normal")
+                self.original_textbox.configure(state="normal")
+                self.original_textbox.delete("1.0", "end")
+                self.original_textbox.configure(state="disabled")
+            else:
+                self.file_label.configure(
+                    text=f"📝 Archivo: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="normal")
+                self.decompress_btn.configure(state="disabled")
+                
+                # Mostrar contenido del archivo de texto en el textbox
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        self.original_content = file.read()
+                        self.original_textbox.configure(state="normal")
+                        self.original_textbox.delete("1.0", "end")
+                        self.original_textbox.insert("1.0", self.original_content)
+                        self.original_textbox.configure(state="disabled")
+                except Exception as e:
+                    messagebox.showerror("Error", f"❌ Error al leer el archivo: {str(e)}")
 
 class ImageCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
@@ -568,6 +627,49 @@ class ImageCompressionWindow(CompressionWindow):
         # Configurar grid weights
         images_display_frame.grid_columnconfigure(0, weight=1)
         images_display_frame.grid_columnconfigure(1, weight=1)
+    
+    def load_file(self):
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar archivo de imagen",
+            filetypes=[
+                ("Archivos de imagen", "*.png *.jpg *.jpeg *.bmp"),
+                ("Archivos comprimidos", "*.imgcomp"),
+                ("Todos los archivos", "*.*")
+            ]
+        )
+        if file_path:
+            self.file_path = file_path
+            file_size = self.get_file_size(file_path)
+            
+            # Verificar si es un archivo comprimido
+            self.is_compressed_file = file_path.endswith('.imgcomp')
+            
+            if self.is_compressed_file:
+                self.file_label.configure(
+                    text=f"🗜️ Archivo comprimido: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="disabled")
+                self.decompress_btn.configure(state="normal")
+                self.original_image_label.configure(text="No hay imagen cargada", image=None)
+            else:
+                self.file_label.configure(
+                    text=f"🖼️ Archivo: {os.path.basename(file_path)}\n"
+                         f"📦 Tamaño: {self.format_size(file_size)}"
+                )
+                self.compress_btn.configure(state="normal")
+                self.decompress_btn.configure(state="disabled")
+                
+                # Mostrar imagen original
+                try:
+                    self.original_image = Image.open(file_path)
+                    # Redimensionar imagen para la vista previa
+                    self.original_image.thumbnail((250, 180))
+                    self.original_photo = ImageTk.PhotoImage(self.original_image)
+                    self.original_image_label.configure(image=self.original_photo, text="")
+                except Exception as e:
+                    messagebox.showerror("Error", f"❌ Error al cargar la imagen: {str(e)}")
+                    self.original_image_label.configure(text="No hay imagen cargada", image=None)
 
 class AudioCompressionWindow(CompressionWindow):
     def __init__(self, parent, compressor):
