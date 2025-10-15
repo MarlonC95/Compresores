@@ -1,7 +1,6 @@
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import os
-import pickle
 import threading
 from compression.text_compression import TextCompressor
 from compression.image_compression import ImageCompressor
@@ -414,7 +413,7 @@ class CompressionWindow:
     def get_file_size(self, file_path):
         try:
             return os.path.getsize(file_path)
-        except:
+        except FileNotFoundError:
             return 0
     
     def format_size(self, size_bytes):
